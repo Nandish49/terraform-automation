@@ -15,7 +15,7 @@ pipeline {
 
         stage('Print Branch') {
             steps {
-                echo "Current Git Branch: ${main}"
+                echo "Current Git Branch: ${env.main}"
             }
         }
 
