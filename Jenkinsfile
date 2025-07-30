@@ -25,8 +25,6 @@ pipeline {
                         echo Azure login failed!
                         exit /b 1
                     )
-
-                    echo Azure login succeeded!
                     az account show
                 '''
             }
@@ -40,11 +38,47 @@ provider "azurerm" {
 }
 
 resource "azurerm_resource_group" "rg" {
-  name     = "jenkins-demo-rg"
+  name     = var.resource_group_name
   location = "East US"
 }
+
+resource "azurerm_storage_account" "sa" {
+  name                     = var.storage_account_name
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_storage_container" "container" {
+  name                  = var.container_name
+  storage_account_name  = azurerm_storage_account.sa.name
+  container_access_type = "private"
+}
 '''
-                writeFile file: 'terraform.tfvars', text: ''
+
+                writeFile file: 'variables.tf', text: '''
+variable "resource_group_name" {
+  description = "Name of the resource group"
+  type        = string
+}
+
+variable "storage_account_name" {
+  description = "Name of the storage account"
+  type        = string
+}
+
+variable "container_name" {
+  description = "Name of the storage container"
+  type        = string
+}
+'''
+
+                writeFile file: 'terraform.tfvars', text: '''
+resource_group_name   = "jenkins-rg"
+storage_account_name  = "jenkinsstorageacct01"
+container_name        = "jenkinscontainer"
+'''
             }
         }
 
