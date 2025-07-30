@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         TF_VAR_FILE = "terraform.tfvars"
+        AZURE_SUBSCRIPTION_ID = "cd70a161-3537-4b00-bb7b-13e422cbcc98" // <-- Replace if needed
     }
 
     stages {
@@ -25,6 +26,7 @@ pipeline {
                         echo Azure login failed!
                         exit /b 1
                     )
+                    az account set --subscription %AZURE_SUBSCRIPTION_ID%
                     az account show
                 '''
             }
@@ -35,6 +37,7 @@ pipeline {
                 writeFile file: 'main.tf', text: '''
 provider "azurerm" {
   features {}
+  subscription_id = "cd70a161-3537-4b00-bb7b-13e422cbcc98"
 }
 
 resource "azurerm_resource_group" "rg" {
