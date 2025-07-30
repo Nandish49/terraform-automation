@@ -13,9 +13,12 @@ pipeline {
             }
         }
 
-        stage('Print Branch') {
+        stage('Detect Branch') {
             steps {
-                echo "Current Git Branch: ${env.main}"
+                script {
+                    env.ACTUAL_BRANCH = (env.GIT_BRANCH ?: env.BRANCH_NAME).replaceFirst(/^origin\//, '').toLowerCase()
+                    echo "Detected branch: ${env.ACTUAL_BRANCH}"
+                }
             }
         }
 
@@ -99,69 +102,19 @@ container_name        = "jenkinscontainer"
             }
         }
 
-        stage('Terraform Plan - Dev') {
+        stage('Terraform Plan and Apply') {
             when {
                 expression {
-                    env.BRANCH_NAME.toLowerCase() == 'dev'
+                    def branch = (env.GIT_BRANCH ?: env.BRANCH_NAME)?.replaceFirst(/^origin\//, '')?.toLowerCase()
+                    return ['dev', 'main', 'prod'].contains(branch)
                 }
             }
             steps {
-                bat "terraform plan -var-file=%TF_VAR_FILE%"
-            }
-        }
-
-        stage('Terraform Apply - Dev') {
-            when {
-                expression {
-                    env.BRANCH_NAME.toLowerCase() == 'dev'
+                script {
+                    echo "Running Terraform on branch: ${env.ACTUAL_BRANCH}"
+                    bat "terraform plan -var-file=%TF_VAR_FILE%"
+                    bat "terraform apply -auto-approve -var-file=%TF_VAR_FILE%"
                 }
-            }
-            steps {
-                bat "terraform apply -auto-approve -var-file=%TF_VAR_FILE%"
-            }
-        }
-
-        stage('Terraform Plan - Main') {
-            when {
-                expression {
-                    env.BRANCH_NAME.toLowerCase() == 'main'
-                }
-            }
-            steps {
-                bat "terraform plan -var-file=%TF_VAR_FILE%"
-            }
-        }
-
-        stage('Terraform Apply - Main') {
-            when {
-                expression {
-                    env.BRANCH_NAME.toLowerCase() == 'main'
-                }
-            }
-            steps {
-                bat "terraform apply -auto-approve -var-file=%TF_VAR_FILE%"
-            }
-        }
-
-        stage('Terraform Plan - Prod') {
-            when {
-                expression {
-                    env.BRANCH_NAME.toLowerCase() == 'prod'
-                }
-            }
-            steps {
-                bat "terraform plan -var-file=%TF_VAR_FILE%"
-            }
-        }
-
-        stage('Terraform Apply - Prod') {
-            when {
-                expression {
-                    env.BRANCH_NAME.toLowerCase() == 'prod'
-                }
-            }
-            steps {
-                bat "terraform apply -auto-approve -var-file=%TF_VAR_FILE%"
             }
         }
     }
