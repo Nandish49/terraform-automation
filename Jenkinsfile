@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        TF_VAR_FILE = "terraform.tfvars"
         AZURE_SUBSCRIPTION_ID = "cd70a161-3537-4b00-bb7b-13e422cbcc98"
     }
 
@@ -13,32 +12,15 @@ pipeline {
             }
         }
 
-        stage('Detect Branch') {
-            steps {
-                script {
-                    env.ACTUAL_BRANCH = (env.GIT_BRANCH ?: env.BRANCH_NAME).replaceFirst(/^origin\//, '').toLowerCase()
-                    echo "Detected branch: ${env.ACTUAL_BRANCH}"
-                }
-            }
-        }
-
         stage('Azure Login') {
             steps {
                 bat '''
-                    echo Logging into Azure using service principal...
                     az login --service-principal ^
                         -u 766936bf-64f1-49ca-affe-baed2adaa01f ^
                         -p Z7t8Q~w2otLwa5tov-xMDO6rlZF_xNZlQIJgcdyK ^
                         --tenant f28f3563-ef6b-4fb2-aac1-327c53835bba
 
-                    if %ERRORLEVEL% NEQ 0 (
-                        echo Azure login failed!
-                        exit /b 1
-                    )
-
-                    echo Setting Azure subscription...
                     az account set --subscription %AZURE_SUBSCRIPTION_ID%
-                    az account show
                 '''
             }
         }
@@ -46,6 +28,15 @@ pipeline {
         stage('Write Terraform Files') {
             steps {
                 writeFile file: 'main.tf', text: '''
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "jenkins-rg"
+    storage_account_name = "jenkinsstorageacct01"
+    container_name       = "jenkinscontainer"
+    key                  = "terraform.tfstate"
+  }
+}
+
 provider "azurerm" {
   features {}
   subscription_id = "cd70a161-3537-4b00-bb7b-13e422cbcc98"
@@ -72,26 +63,27 @@ resource "azurerm_storage_container" "container" {
 '''
 
                 writeFile file: 'variables.tf', text: '''
-variable "resource_group_name" {
-  description = "Name of the resource group"
-  type        = string
-}
-
-variable "storage_account_name" {
-  description = "Name of the storage account"
-  type        = string
-}
-
-variable "container_name" {
-  description = "Name of the storage container"
-  type        = string
-}
+variable "resource_group_name" { type = string }
+variable "storage_account_name" { type = string }
+variable "container_name" { type = string }
 '''
 
-                writeFile file: 'terraform.tfvars', text: '''
-resource_group_name   = "jenkins-rg"
-storage_account_name  = "jenkinsstorageacct01"
-container_name        = "jenkinscontainer"
+                writeFile file: 'dev.tfvars', text: '''
+resource_group_name   = "jenkins-rg-dev"
+storage_account_name  = "jenkinsstorageacctdev"
+container_name        = "jenkinscontainerdev"
+'''
+
+                writeFile file: 'main.tfvars', text: '''
+resource_group_name   = "jenkins-rg-main"
+storage_account_name  = "jenkinsstorageacctmain"
+container_name        = "jenkinscontainermain"
+'''
+
+                writeFile file: 'prod.tfvars', text: '''
+resource_group_name   = "jenkins-rg-prod"
+storage_account_name  = "jenkinsstorageacctprod"
+container_name        = "jenkinscontainerprod"
 '''
             }
         }
@@ -102,19 +94,82 @@ container_name        = "jenkinscontainer"
             }
         }
 
-        stage('Terraform Plan and Apply') {
-            when {
-                expression {
-                    def branch = (env.GIT_BRANCH ?: env.BRANCH_NAME)?.replaceFirst(/^origin\//, '')?.toLowerCase()
-                    return ['dev', 'main', 'prod'].contains(branch)
-                }
-            }
+        // ===========================
+        // DEV Branch
+        // ===========================
+        stage('Terraform Plan - Dev') {
+            when { branch 'dev' }
             steps {
-                script {
-                    echo "Running Terraform on branch: ${env.ACTUAL_BRANCH}"
-                    bat "terraform plan -var-file=%TF_VAR_FILE%"
-                    bat "terraform apply -auto-approve -var-file=%TF_VAR_FILE%"
-                }
+                bat "terraform plan -var-file=dev.tfvars"
+            }
+        }
+
+        stage('Terraform Apply - Dev') {
+            when { branch 'dev' }
+            steps {
+                bat "terraform apply -auto-approve -var-file=dev.tfvars"
+            }
+        }
+
+        stage('Terraform Destroy - Dev') {
+            when { branch 'dev' }
+            steps {
+                bat "terraform destroy -auto-approve -var-file=dev.tfvars"
+            }
+        }
+
+        // ===========================
+        // MAIN Branch
+        // ===========================
+        stage('Terraform Plan - Main') {
+            when { branch 'main' }
+            steps {
+                bat "terraform plan -var-file=main.tfvars"
+            }
+        }
+
+        stage('Approval - Main') {
+            when { branch 'main' }
+            steps {
+                input message: 'Approve deployment to MAIN?', ok: 'Deploy'
+            }
+        }
+
+        stage('Terraform Apply - Main') {
+            when { branch 'main' }
+            steps {
+                bat "terraform apply -auto-approve -var-file=main.tfvars"
+            }
+        }
+
+        stage('Terraform Destroy - Main') {
+            when { branch 'main' }
+            steps {
+                bat "terraform destroy -auto-approve -var-file=main.tfvars"
+            }
+        }
+
+        // ===========================
+        // PROD Branch
+        // ===========================
+        stage('Terraform Plan - Prod') {
+            when { branch 'prod' }
+            steps {
+                bat "terraform plan -var-file=prod.tfvars"
+            }
+        }
+
+        stage('Approval - Prod') {
+            when { branch 'prod' }
+            steps {
+                input message: 'Approve deployment to PROD?', ok: 'Deploy'
+            }
+        }
+
+        stage('Terraform Apply - Prod') {
+            when { branch 'prod' }
+            steps {
+                bat "terraform apply -auto-approve -var-file=prod.tfvars"
             }
         }
     }
