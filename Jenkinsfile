@@ -26,6 +26,7 @@ pipeline {
                         echo Azure login failed!
                         exit /b 1
                     )
+
                     echo Setting Azure subscription...
                     az account set --subscription %AZURE_SUBSCRIPTION_ID%
                     az account show
