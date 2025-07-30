@@ -10,7 +10,7 @@ pipeline {
 
         stage('Terraform Init') {
             steps {
-                sh 'terraform init'
+                bat 'terraform init'
             }
         }
 
@@ -19,7 +19,7 @@ pipeline {
                 branch 'dev'
             }
             steps {
-                sh 'terraform plan -var-file=terraform.tfvars'
+                bat 'terraform plan -var-file=terraform.tfvars'
             }
         }
 
@@ -28,7 +28,7 @@ pipeline {
                 branch 'prod'
             }
             steps {
-                sh 'terraform plan -var-file=terraform.tfvars'
+                bat 'terraform plan -var-file=terraform.tfvars'
             }
         }
 
@@ -37,7 +37,7 @@ pipeline {
                 branch 'main'
             }
             steps {
-                sh 'terraform plan -var-file=terraform.tfvars'
+                bat 'terraform plan -var-file=terraform.tfvars'
             }
         }
     }
