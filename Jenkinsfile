@@ -32,6 +32,22 @@ pipeline {
             }
         }
 
+        stage('Write Terraform Files') {
+            steps {
+                writeFile file: 'main.tf', text: '''
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "rg" {
+  name     = "jenkins-demo-rg"
+  location = "East US"
+}
+'''
+                writeFile file: 'terraform.tfvars', text: ''
+            }
+        }
+
         stage('Terraform Init') {
             steps {
                 bat 'terraform init'
@@ -47,6 +63,15 @@ pipeline {
             }
         }
 
+        stage('Terraform Apply - Dev') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                bat "terraform apply -auto-approve -var-file=%TF_VAR_FILE%"
+            }
+        }
+
         stage('Terraform Plan - Prod') {
             when {
                 branch 'prod'
@@ -56,12 +81,30 @@ pipeline {
             }
         }
 
+        stage('Terraform Apply - Prod') {
+            when {
+                branch 'prod'
+            }
+            steps {
+                bat "terraform apply -auto-approve -var-file=%TF_VAR_FILE%"
+            }
+        }
+
         stage('Terraform Plan - Main') {
             when {
                 branch 'main'
             }
             steps {
                 bat "terraform plan -var-file=%TF_VAR_FILE%"
+            }
+        }
+
+        stage('Terraform Apply - Main') {
+            when {
+                branch 'main'
+            }
+            steps {
+                bat "terraform apply -auto-approve -var-file=%TF_VAR_FILE%"
             }
         }
     }
