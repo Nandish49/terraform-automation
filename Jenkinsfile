@@ -15,11 +15,19 @@ pipeline {
         stage('Azure Login') {
             steps {
                 bat '''
-                    az logout
+                    echo Logging into Azure using service principal...
                     az login --service-principal ^
                         -u 766936bf-64f1-49ca-affe-baed2adaa01f ^
                         -p Z7t8Q~w2otLwa5tov-xMDO6rlZF_xNZlQIJgcdyK ^
                         --tenant f28f3563-ef6b-4fb2-aac1-327c53835bba
+
+                    if %ERRORLEVEL% NEQ 0 (
+                        echo Azure login failed!
+                        exit /b 1
+                    )
+
+                    echo Azure login succeeded!
+                    az account show
                 '''
             }
         }
