@@ -12,6 +12,12 @@ pipeline {
             }
         }
 
+        stage('Debug Branch') {
+            steps {
+                echo "Current branch is: ${env.BRANCH_NAME}"
+            }
+        }
+
         stage('Azure Login') {
             steps {
                 bat '''
